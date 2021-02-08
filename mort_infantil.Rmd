@@ -1,0 +1,133 @@
+---
+title: "Mortalidade Infantil na América do Sul no Século XXI"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: columns
+---
+
+```{r Carregando pacotes, message=FALSE, warning=FALSE, include=FALSE}
+# Função para carregar vários pacotes; instala os pacotes se necessário
+carrega_pacote <- function(pacotes){
+  for(i in 1:length(pacotes)){
+    if(!require(pacotes[i],character.only=TRUE)){
+      install.packages(pacotes[i])
+      library(pacotes[i],character.only=TRUE)
+    }  
+  }
+}
+
+#Carregando pacotes
+carrega_pacote(c("cowplot","ggplot2","flexdashboard","dplyr","rworldmap"))
+```
+
+
+```{r Organizando o Banco de Dados, include=FALSE}
+sul_america <- read.csv("dados_banco_mundial.csv")
+head(sul_america)
+
+# Renomeando as variáveis, excluindo as 2 últimas colunas e
+# excluindo as colunas dos anos anteriores a 2001
+sul_america <- sul_america[,1:64]
+colnames(sul_america) <- c("Pais", "Pais.Codigo","Indicador","Indicador.Codigo", as.character(1960:2019))
+sul_america <- select(sul_america,"Pais","Pais.Codigo","Indicador","Indicador.Codigo",as.character(2001:2019))
+
+
+# Mudando os valores "Venezuela, RB" para "Venezuela". Será usado para aplicar nos gráficos
+# feitos com o pacote rworldmap.
+
+sul_america[sul_america=="Venezuela, RB"] <- "Venezuela"
+```
+
+
+```{r, include=FALSE}
+# Acessando os dados de mortalidade a partir do código do indicador.
+# É possível pesquisar sobre os indicadores c/ a função wbsearch do pacote wbstats
+
+mortalidade <- filter(sul_america,Indicador.Codigo=="SP.DYN.IMRT.IN")
+```
+
+
+
+
+Row {data-width=500}
+-----------------------------------------------------------------------
+
+### **Mapa de calor da taxa de mortalidade infantil(TMI) em 2019(por 1000 nascimentos)**
+
+```{r, dataframe p mapa, include=FALSE}
+
+# Incorporando as informações do dataframe no mapa.
+plot_mort <- joinCountryData2Map(mortalidade,"NAME",nameJoinColumn = "Pais.Codigo")
+```
+
+```{r, grafico do mapa de calor}
+mapCountryData(plot_mort,nameColumnToPlot = "2019",xlim=c(-51,-50.9), ylim=c(-52,10),
+               mapTitle="")
+```
+
+> Fonte: Banco Mundial. Banco de dados disponível em [https://data.worldbank.org/](https://data.worldbank.org/).
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### **Evolução da TMI: De 2001 a 2019**
+
+```{r, grafico(objeto e plot),echo=FALSE}
+colors <- c("Argentina"="blue","Bolívia"="light green","Brasil"="dark green","Chile"="grey","Colômbia"="yellow","Equador"="brown","Paraguai"="pink","Peru"="red","Uruguai"="dark blue","Venezuela"="purple")
+
+# Gráfico da Evolução da TMI
+
+p <- ggplot() + aes(x=2001:2019)
+p <- p + geom_point(aes(y=as.numeric(mortalidade[1,5:23]),color="Argentina")) +
+  geom_line(aes(y=as.numeric(mortalidade[1,5:23]),color="Argentina")) +
+  geom_point(aes(y=as.numeric(mortalidade[2,5:23]),color="Bolívia")) +
+  geom_line(aes(y=as.numeric(mortalidade[2,5:23]),color="Bolívia")) +
+  geom_point(aes(y=as.numeric(mortalidade[3,5:23]),color="Brasil")) +
+  geom_line(aes(y=as.numeric(mortalidade[3,5:23]),color="Brasil")) +
+  geom_point(aes(y=as.numeric(mortalidade[4,5:23]),color="Chile")) +
+  geom_line(aes(y=as.numeric(mortalidade[4,5:23]),color="Chile")) + 
+  geom_point(aes(y=as.numeric(mortalidade[5,5:23]),color="Colômbia")) +
+  geom_line(aes(y=as.numeric(mortalidade[5,5:23]),color="Colômbia")) +
+  geom_point(aes(y=as.numeric(mortalidade[6,5:23]),color="Equador")) +
+  geom_line(aes(y=as.numeric(mortalidade[6,5:23]),color="Equador")) +
+  geom_point(aes(y=as.numeric(mortalidade[7,5:23]),color="Paraguai")) +
+  geom_line(aes(y=as.numeric(mortalidade[7,5:23]),color="Paraguai")) +
+  geom_point(aes(y=as.numeric(mortalidade[8,5:23]),color="Peru")) +
+  geom_line(aes(y=as.numeric(mortalidade[8,5:23]),color="Peru")) +
+  geom_point(aes(y=as.numeric(mortalidade[9,5:23]),color="Uruguai")) +
+  geom_line(aes(y=as.numeric(mortalidade[9,5:23]),color="Uruguai")) +
+  geom_point(aes(y=as.numeric(mortalidade[10,5:23]),color="Venezuela")) +
+  geom_line(aes(y=as.numeric(mortalidade[10,5:23]),color="Venezuela")) +
+  labs(title="",x="",y="",color="Legenda") + theme_cowplot() + scale_color_manual(values=colors)
+p
+```
+
+
+> No início do Século, a cada 20 nascimentos na Bolívia, em média, havia mais de 1 morte. A Venezuela é o único país a registrar TMI maior em 2019 que em 2001. Desde o inícios dos anos 2000 o Chile possui taxas menores que 10. 
+
+
+
+### Tabela da TMI
+
+```{r, tabela(dataframe), include=FALSE}
+valor <- function(estat,linha){
+  if(estat == "min") min(as.numeric(mortalidade[linha,5:23]))
+  else if(estat == "max") max(as.numeric(mortalidade[linha,5:23]))
+  else if(estat == "media") round(mean(as.numeric(mortalidade[linha,5:23])),2)
+  else if (estat == "mediana") median(as.numeric(mortalidade[linha,5:23]))
+}
+
+tabela <- data.frame("Paises"=c("Argentina","Bolívia","Brasil","Chile","Colômbia","Equador"
+                                ,"Paraguai","Peru","Uruguai","Venezuela"),"Mínimo"=
+                       mapply(valor,"min",1:10), "Máximo"=
+                       mapply(valor,"max",1:10), "Média"=
+                       mapply(valor,"media",1:10), "Mediana"=
+                       mapply(valor,"mediana",1:10))
+```
+
+```{r, tabela(plot)}
+knitr::kable(tabela)
+```
+
+> Chile e Uruguai, em qualquer estatística, apresentam números bem melhores que os demais.
+
