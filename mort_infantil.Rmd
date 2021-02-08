@@ -1,0 +1,95 @@
+---
+title: "Mortalidade Infantil na América do Sul no Século XXI"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r Carregando pacotes, message=FALSE, warning=FALSE, include=FALSE}
+# Função para carregar vários pacotes; instala os pacotes se necessário
+carrega_pacote <- function(pacotes){
+  for(i in 1:length(pacotes)){
+    if(!require(pacotes[i],character.only=TRUE)){
+      install.packages(pacotes[i])
+      library(pacotes[i],character.only=TRUE)
+    }  
+  }
+}
+
+#Carregando pacotes
+carrega_pacote(c("cowplot","ggplot2","flexdashboard","dplyr","rworldmap"))
+```
+
+
+```{r Organizando o Banco de Dados, include=FALSE}
+sul_america <- read.csv("dados_banco_mundial.csv")
+head(sul_america)
+
+# Renomeando as variáveis, excluindo as 2 últimas colunas e
+# excluindo as colunas dos anos anteriores a 2001
+sul_america <- sul_america[,1:64]
+colnames(sul_america) <- c("Pais", "Pais.Codigo","Indicador","Indicador.Codigo", as.character(1960:2019))
+sul_america <- select(sul_america,"Pais","Pais.Codigo","Indicador","Indicador.Codigo",as.character(2001:2019))
+
+
+# Mudando os valores "Venezuela, RB" para "Venezuela". Será usado para aplicar nos gráficos
+# feitos com o pacote rworldmap.
+
+sul_america[sul_america=="Venezuela, RB"] <- "Venezuela"
+```
+
+
+```{r, include=FALSE}
+mortalidade <- filter(sul_america,Indicador.Codigo=="SP.DYN.IMRT.IN")
+plot_mort <- joinCountryData2Map(mortalidade,"NAME",nameJoinColumn = "Pais.Codigo")
+
+```
+
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### **Mapa de calor da taxa de mortalidade infantil(TMI) em 2019(por 1000 nascimentos)**
+
+```{r}
+mapCountryData(plot_mort,nameColumnToPlot = "2019",xlim=c(-51,-50.9), ylim=c(-52,10),
+               mapTitle="")
+```
+
+> Sul amarelo: Argentina, Chile e Uruguai possuem as menores TI. Bolívia e Venezuela, bem avermelhados, apresentam as maiores TMI.
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### De 2001 a 2019: a evolução da TMI
+
+```{r}
+colors <- c("Argentina"="blue","Bolívia"="light green","Brasil"="dark green","Chile"="grey","Colômbia"="yellow","Equador"="brown","Paraguai"="pink","Peru"="red","Uruguai"="dark blue","Venezuela"="purple")
+
+p <- ggplot() + aes(x=2001:2019)
+p <- p + geom_point(aes(y=as.numeric(mortalidade[1,5:23]),color="Argentina")) +
+  geom_line(aes(y=as.numeric(mortalidade[1,5:23]),color="Argentina")) +
+  geom_point(aes(y=as.numeric(mortalidade[2,5:23]),color="Bolívia")) +
+  geom_line(aes(y=as.numeric(mortalidade[2,5:23]),color="Bolívia")) +
+  geom_point(aes(y=as.numeric(mortalidade[3,5:23]),color="Brasil")) +
+  geom_line(aes(y=as.numeric(mortalidade[3,5:23]),color="Brasil")) +
+  geom_point(aes(y=as.numeric(mortalidade[4,5:23]),color="Chile")) +
+  geom_line(aes(y=as.numeric(mortalidade[4,5:23]),color="Chile")) + 
+  geom_point(aes(y=as.numeric(mortalidade[5,5:23]),color="Colômbia")) +
+  geom_line(aes(y=as.numeric(mortalidade[5,5:23]),color="Colômbia")) +
+  geom_point(aes(y=as.numeric(mortalidade[6,5:23]),color="Equador")) +
+  geom_line(aes(y=as.numeric(mortalidade[6,5:23]),color="Equador")) +
+  geom_point(aes(y=as.numeric(mortalidade[7,5:23]),color="Paraguai")) +
+  geom_line(aes(y=as.numeric(mortalidade[7,5:23]),color="Paraguai")) +
+  geom_point(aes(y=as.numeric(mortalidade[8,5:23]),color="Peru")) +
+  geom_line(aes(y=as.numeric(mortalidade[8,5:23]),color="Peru")) +
+  geom_point(aes(y=as.numeric(mortalidade[9,5:23]),color="Uruguai")) +
+  geom_line(aes(y=as.numeric(mortalidade[9,5:23]),color="Uruguai")) +
+  geom_point(aes(y=as.numeric(mortalidade[10,5:23]),color="Venezuela")) +
+  geom_line(aes(y=as.numeric(mortalidade[10,5:23]),color="Venezuela")) +
+  labs(title="",x="",y="",color="Legend") + theme_cowplot() + scale_color_manual(values=colors)
+p
+```
+
+> No início do Século, a cada 20 nascimentos na Bolívia, em média, havia mais de 1 morte. A Venezuela é o único país a registrar TMI maior em 2019 que em 2001. Desde o inícios dos anos 2000 o Chile possui taxas menores que 10. 
